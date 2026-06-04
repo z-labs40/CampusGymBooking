@@ -17,6 +17,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, rollNumber: string) => Promise<void>;
+  resetPassword: (email: string, newPassword: string) => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const registeredUsersJson = await AsyncStorage.getItem('registeredUsers');
       let registeredUsers: any[] = registeredUsersJson ? JSON.parse(registeredUsersJson) : [];
       
-      const foundUser = registeredUsers.find(u => u.email === email && u.password === password);
+      const foundUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
       
       if (foundUser) {
         loggedInUser = { 
@@ -89,6 +90,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await new Promise(resolve => setTimeout(resolve, 500));
   };
 
+  const resetPassword = async (email: string, newPassword: string) => {
+    const registeredUsersJson = await AsyncStorage.getItem('registeredUsers');
+    let registeredUsers: any[] = registeredUsersJson ? JSON.parse(registeredUsersJson) : [];
+    
+    const userIndex = registeredUsers.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    if (userIndex === -1) {
+      throw new Error('Account not found. Please check your email.');
+    }
+    
+    registeredUsers[userIndex].password = newPassword;
+    await AsyncStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+    await new Promise(resolve => setTimeout(resolve, 500));
+  };
+
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
     const updatedUser = { ...user, ...updates };
@@ -102,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, updateProfile, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, resetPassword, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );
