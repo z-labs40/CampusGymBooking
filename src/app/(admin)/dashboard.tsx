@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useBookings } from '../../context/BookingContext';
@@ -12,14 +12,18 @@ type Tab = 'queue' | 'history';
 
 export default function AdminDashboard() {
   const { logout } = useAuth();
-  const { bookings, approveBooking, rejectBooking } = useBookings();
+  const { bookings, loadBookings, approveBooking, rejectBooking } = useBookings();
   const [activeTab, setActiveTab] = useState<Tab>('queue');
+
+  useEffect(() => {
+    loadBookings(true);
+  }, []);
 
   const pendingBookings = bookings.filter((b) => b.status === 'pending');
   const approvedBookings = bookings.filter((b) => b.status === 'approved');
   const rejectedBookings = bookings.filter((b) => b.status === 'rejected');
 
-  const historyBookings = [...approvedBookings, ...rejectedBookings].sort((a, b) => b.createdAt - a.createdAt);
+  const historyBookings = [...approvedBookings, ...rejectedBookings].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
     <View style={styles.container}>
@@ -100,11 +104,11 @@ export default function AdminDashboard() {
                   <GlassCard key={booking.id} intensity={30} style={styles.requestCard} contentStyle={styles.requestContent}>
                     <View style={styles.requestHeader}>
                       <View style={{ flexShrink: 1 }}>
-                        <Text style={styles.studentName} numberOfLines={1}>{booking.studentName}</Text>
+                        <Text style={styles.studentName} numberOfLines={1}>{booking.student?.name || 'Unknown'}</Text>
                         <Text style={styles.requestTime} numberOfLines={1}>Requested at {new Date(booking.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
                       </View>
                       <View style={[styles.facilityBadge, { flexShrink: 1, marginLeft: Spacing.md }]}>
-                        <Text style={styles.facilityBadgeText} numberOfLines={1}>{booking.facility}</Text>
+                        <Text style={styles.facilityBadgeText} numberOfLines={1}>{booking.facility?.name || 'Unknown'}</Text>
                       </View>
                     </View>
 
@@ -162,7 +166,7 @@ export default function AdminDashboard() {
                       </View>
                       <View style={styles.historyTextContainer}>
                         <Text style={styles.historyTitle} numberOfLines={1}>
-                          {booking.studentName} <Text style={{fontWeight: 'normal', color: Colors.textMuted}}>for</Text> {booking.facility}
+                          {booking.student?.name || 'Unknown'} <Text style={{fontWeight: 'normal', color: Colors.textMuted}}>for</Text> {booking.facility?.name || 'Unknown'}
                         </Text>
                         <Text style={styles.historySub}>
                           {booking.date} at {booking.time}

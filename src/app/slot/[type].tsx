@@ -10,6 +10,7 @@ import { TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useBookings } from '../../context/BookingContext';
+import { useFacilities } from '../../context/FacilityContext';
 
 // Slots are generated dynamically below
 
@@ -17,7 +18,8 @@ export default function SlotBookingScreen() {
   const { type } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
-  const { bookings, addBooking } = useBookings();
+  const { bookings, addBooking, loadBookings } = useBookings();
+  const { facilities } = useFacilities();
   
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
@@ -25,7 +27,29 @@ export default function SlotBookingScreen() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
 
-  const title = type === 'gym' ? 'Gym Booking' : `Court Booking (${type?.toString().replace('court-', 'Court ')})`;
+  const facilityId = React.useMemo(() => {
+    if (type === 'gym') {
+      const gym = facilities.find(f => f.type === 'gym');
+      return gym?.id || '';
+    } else if (type?.toString().startsWith('court-')) {
+      const id = type.toString().replace('court-', '');
+      const court = facilities.find(f => f.id === id);
+      return court?.id || '';
+    }
+    return '';
+  }, [type, facilities]);
+
+  // Compute a clean title
+  const title = React.useMemo(() => {
+    if (type === 'gym') return 'Gym Booking';
+    const court = facilities.find(f => f.id === facilityId);
+    return court ? `Court Booking (${court.name})` : 'Court Booking';
+  }, [type, facilityId, facilities]);
+
+  React.useEffect(() => {
+    // Load bookings so we know which slots are already booked by the user
+    loadBookings(user?.role === 'admin');
+  }, []);
 
   React.useEffect(() => {
     const times = [
@@ -34,8 +58,9 @@ export default function SlotBookingScreen() {
     ];
     
     // Find all bookings for this specific date and facility
+    const formattedDate = date.toISOString().split('T')[0];
     const existingBookings = bookings.filter(
-      (b) => b.facility === title && b.date === date.toDateString()
+      (b) => (b.facility?.id === facilityId || b.facilityId === facilityId) && b.date === formattedDate
     );
 
     const newSlots = times.map((time, index) => {
@@ -55,7 +80,7 @@ export default function SlotBookingScreen() {
     });
     
     setSlots(newSlots);
-  }, [date, bookings, title]);
+  }, [date, bookings, title, facilityId]);
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     const currentDate = selectedDate || date;
@@ -65,24 +90,24 @@ export default function SlotBookingScreen() {
     setSelectedSlotId(undefined);
   };
 
-  const handleBook = () => {
+  const handleBook = async () => {
     if (!selectedSlotId) return;
     
     const selectedSlot = slots.find(s => s.id === selectedSlotId);
     if (!selectedSlot) return;
 
     setLoading(true);
-    // Submit real booking to context
-    setTimeout(() => {
-      addBooking({
-        studentId: user?.id || 'unknown',
-        studentName: user?.name || 'Unknown Student',
-        facility: title,
-        date: date.toDateString(),
-        time: selectedSlot.time,
-      });
+    try {
+      if (!facilityId) {
+        throw new Error('Facility not found. Please refresh and try again.');
+      }
 
-      setLoading(false);
+      await addBooking(
+        facilityId,
+        date.toISOString().split('T')[0], // YYYY-MM-DD
+        selectedSlot.time
+      );
+
       Alert.alert(
         'Request Submitted',
         `Your booking request for ${date.toDateString()} at ${selectedSlot.time} has been sent to the admin for approval.`,
@@ -90,7 +115,11 @@ export default function SlotBookingScreen() {
           { text: 'OK', onPress: () => router.back() }
         ]
       );
-    }, 1000);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to submit booking. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

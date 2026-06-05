@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { fetchApi } from '../utils/api';
 
 export type FacilityType = 'gym' | 'court';
 export type FacilityStatus = 'available' | 'maintenance';
@@ -11,55 +12,46 @@ export interface Facility {
   description: string;
 }
 
-const INITIAL_FACILITIES: Facility[] = [
-  { 
-    id: 'gym-main', 
-    name: 'Main Campus Gym', 
-    type: 'gym', 
-    status: 'available',
-    description: 'Fully equipped fitness center with cardio and weight zones.'
-  },
-  { 
-    id: 'court-1', 
-    name: 'Pro Court Alpha', 
-    type: 'court', 
-    status: 'available',
-    description: 'Professional grade synthetic matting. Best for competitive matches.'
-  },
-  { 
-    id: 'court-2', 
-    name: 'Standard Court Beta', 
-    type: 'court', 
-    status: 'available',
-    description: 'Wooden sprung floor. Great for casual play and training.'
-  },
-  { 
-    id: 'court-3', 
-    name: 'Court Gamma', 
-    type: 'court', 
-    status: 'maintenance',
-    description: 'Currently undergoing floor polishing and net replacement.'
-  },
-];
-
 interface FacilityContextType {
   facilities: Facility[];
-  updateFacilityStatus: (id: string, status: FacilityStatus) => void;
+  updateFacilityStatus: (id: string, status: FacilityStatus) => Promise<void>;
+  loadFacilities: () => Promise<void>;
 }
 
 const FacilityContext = createContext<FacilityContextType | undefined>(undefined);
 
 export const FacilityProvider = ({ children }: { children: ReactNode }) => {
-  const [facilities, setFacilities] = useState<Facility[]>(INITIAL_FACILITIES);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
 
-  const updateFacilityStatus = (id: string, status: FacilityStatus) => {
-    setFacilities((prev) => 
-      prev.map(f => f.id === id ? { ...f, status } : f)
-    );
+  const loadFacilities = async () => {
+    try {
+      const res = await fetchApi('/facilities');
+      setFacilities(res.data);
+    } catch (err) {
+      console.error('Failed to load facilities', err);
+    }
+  };
+
+  useEffect(() => {
+    loadFacilities();
+  }, []);
+
+  const updateFacilityStatus = async (id: string, status: FacilityStatus) => {
+    try {
+      await fetchApi(`/facilities/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      });
+      setFacilities((prev) => 
+        prev.map(f => f.id === id ? { ...f, status } : f)
+      );
+    } catch (err) {
+      console.error('Failed to update facility status', err);
+    }
   };
 
   return (
-    <FacilityContext.Provider value={{ facilities, updateFacilityStatus }}>
+    <FacilityContext.Provider value={{ facilities, updateFacilityStatus, loadFacilities }}>
       {children}
     </FacilityContext.Provider>
   );

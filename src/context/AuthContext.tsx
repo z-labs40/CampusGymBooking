@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchApi } from '../utils/api';
 
 export type UserRole = 'student' | 'admin';
 
@@ -31,12 +32,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          const res = await fetchApi('/users/me');
+          setUser(res.data);
         }
       } catch (error) {
         console.error('Failed to load user', error);
+        await AsyncStorage.removeItem('token');
       } finally {
         setIsLoading(false);
       }
@@ -45,74 +48,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    let loggedInUser: User;
-    
-    if (email === 'admin@college.edu' && password === 'admin') {
-      loggedInUser = { id: '0', name: 'System Admin', email, role: 'admin' };
-    } else {
-      // Check for registered mock users
-      const registeredUsersJson = await AsyncStorage.getItem('registeredUsers');
-      let registeredUsers: any[] = registeredUsersJson ? JSON.parse(registeredUsersJson) : [];
-      
-      const foundUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      
-      if (foundUser) {
-        loggedInUser = { 
-          id: foundUser.id, 
-          name: foundUser.name, 
-          email: foundUser.email, 
-          role: 'student', 
-          rollNumber: foundUser.rollNumber 
-        };
-      } else {
-        throw new Error('Account not found. Please sign up first.');
-      }
-    }
-    
-    await AsyncStorage.setItem('user', JSON.stringify(loggedInUser));
-    setUser(loggedInUser);
+    const res = await fetchApi('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+    await AsyncStorage.setItem('token', res.data.token);
+    setUser(res.data);
   };
 
   const register = async (name: string, email: string, password: string, rollNumber: string) => {
-    const registeredUsersJson = await AsyncStorage.getItem('registeredUsers');
-    let registeredUsers: any[] = registeredUsersJson ? JSON.parse(registeredUsersJson) : [];
-    
-    // Add new user to the mock database
-    registeredUsers.push({
-      id: Date.now().toString(),
-      name,
-      email,
-      password,
-      rollNumber
+    await fetchApi('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, role: 'student', rollNumber })
     });
-    
-    await AsyncStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // We intentionally don't set the token or user here, so they can be redirected to the login page.
   };
 
   const resetPassword = async (email: string, newPassword: string) => {
-    const registeredUsersJson = await AsyncStorage.getItem('registeredUsers');
-    let registeredUsers: any[] = registeredUsersJson ? JSON.parse(registeredUsersJson) : [];
-    
-    const userIndex = registeredUsers.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-    if (userIndex === -1) {
-      throw new Error('Account not found. Please check your email.');
-    }
-    
-    registeredUsers[userIndex].password = newPassword;
-    await AsyncStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Backend doesn't have an endpoint for this yet, throwing an error
+    throw new Error('Forgot password is not currently supported by the server.');
   };
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
-    const updatedUser = { ...user, ...updates };
-    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-    setUser(updatedUser);
+    const res = await fetchApi('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+    setUser(res.data);
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('token');
     setUser(null);
   };
 

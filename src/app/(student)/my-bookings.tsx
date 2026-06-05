@@ -5,13 +5,17 @@ import { GlassCard } from '../../components/ui/GlassCard';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useBookings } from '../../context/BookingContext';
 import { useAuth } from '../../context/AuthContext';
+import { useEffect } from 'react';
 
 export default function MyBookingsScreen() {
-  const { bookings } = useBookings();
+  const { bookings, loadBookings } = useBookings();
   const { user } = useAuth();
 
-  // Filter bookings to only show the logged-in student's bookings
-  const myBookings = bookings.filter((b) => b.studentId === user?.id);
+  useEffect(() => {
+    loadBookings(false);
+  }, []);
+
+  const myBookings = bookings;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -51,10 +55,10 @@ export default function MyBookingsScreen() {
                 <View style={styles.cardHeader}>
                   <View style={styles.facilityInfo}>
                     <View style={styles.iconBox}>
-                      <Ionicons name={booking.facility.includes('Gym') ? 'barbell-outline' : 'tennisball-outline'} size={20} color="#fff" />
+                      <Ionicons name={booking.facility?.name?.includes('Gym') ? 'barbell-outline' : 'tennisball-outline'} size={20} color="#fff" />
                     </View>
                     <Text style={[styles.facilityName, { flexShrink: 1 }]} numberOfLines={1}>
-                      {booking.facility}
+                      {booking.facility?.name || 'Unknown Facility'}
                     </Text>
                   </View>
                   <View style={[styles.badge, { backgroundColor: statusBg }]}>

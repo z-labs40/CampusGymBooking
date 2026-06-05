@@ -11,8 +11,12 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const { facilities } = useFacilities();
+  const { facilities, loadFacilities } = useFacilities();
   const { user } = useAuth();
+
+  React.useEffect(() => {
+    loadFacilities();
+  }, []);
 
   const mainGym = facilities.find(f => f.id === 'gym-main');
   const isGymMaintenance = mainGym?.status === 'maintenance';
