@@ -38,7 +38,7 @@ export default function CourtsScreen() {
                 style={[styles.cardContainer, { marginTop: index === 0 ? 0 : Spacing.lg }]}
               >
                 <ImageBackground 
-                  source={require('../../../assets/images/court-bg.png')} 
+                  source={require('../../../assets/images/court-bg.jpg')} 
                   style={styles.cardImage} 
                   imageStyle={styles.cardImageStyle}
                 >

@@ -71,7 +71,7 @@ export default function StudentDashboard() {
             disabled={isGymMaintenance}
           >
             <ImageBackground 
-              source={require('../../../assets/images/gym-bg.png')} 
+              source={require('../../../assets/images/gym-bg.jpg')} 
               style={styles.cardImage}
               imageStyle={{ borderRadius: 24 }}
             >
@@ -100,7 +100,7 @@ export default function StudentDashboard() {
           {/* Courts Card */}
           <TouchableOpacity onPress={handleBookCourts} activeOpacity={0.9} style={styles.carouselCard}>
             <ImageBackground 
-              source={require('../../../assets/images/court-bg.png')} 
+              source={require('../../../assets/images/court-bg.jpg')} 
               style={styles.cardImage}
               imageStyle={{ borderRadius: 24 }}
             >
